@@ -1,0 +1,48 @@
+import streamlit as st
+import requests
+import base64
+
+GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+
+def شرح_الدرس(image_bytes):
+    url = "https://models.inference.ai.azure.com/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    b64_image = base64.b64encode(image_bytes).decode()
+
+    data = {
+        "model": "meta-llama/Llama-3.2-11B-Vision-Instruct",
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "اشرحلي الدرس اللي في الصورة دي بالتفصيل وبأسلوب بسيط لطالب ثانوي. اعمل تلخيص ونقاط مهمة وأسئلة متوقعة"},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}}
+            ]
+        }],
+        "max_tokens": 1500
+    }
+
+    res = requests.post(url, headers=headers, json=data)
+    if res.status_code == 200:
+        return res.json()["choices"][0]["message"]["content"]
+    else:
+        raise Exception(f"Error {res.status_code}: {res.text}")
+
+st.title("📚 ملخصلي")
+st.write("ارفع صورة الدرس وأنا هشرحهولك")
+
+uploaded_file = st.file_uploader("ارفع الصورة", type=["jpg","png","jpeg"])
+
+if uploaded_file:
+    st.image(uploaded_file, caption="الدرس")
+    if st.button("اشرح الدرس"):
+        with st.spinner("بفكر في الشرح..."):
+            try:
+                result = شرح_الدرس(uploaded_file.getvalue())
+                st.success("الشرح جاهز:")
+                st.write(result)
+            except Exception as e:
+                st.error(f"فيه مشكلة: {e}")
