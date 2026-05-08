@@ -1,7 +1,6 @@
 import streamlit as st
 import PyPDF2
 from datetime import datetime, timedelta
-import hashlib
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
@@ -16,19 +15,19 @@ download_nltk_data()
 
 st.set_page_config(page_title="ملخصي - اشتراك شهري 200ج", page_icon="📝")
 
-# كوكيز شهر واحد بس
+# كوكيز شهر واحد
 cookie_manager = stx.CookieManager()
 
-# الكود السري بيتغير كل شهر تلقائي
-def get_monthly_code():
-    current_month = datetime.now().strftime("%Y-%m")
-    secret = f"molkhasly_{current_month}_monthly_2026"
-    return hashlib.md5(secret.encode()).hexdigest()[:6].upper()
+# الكود الشهري من الـ Secrets
+try:
+    MONTHLY_CODE = st.secrets["MONTHLY_CODE"]
+except:
+    st.error("الكود الشهري مش متضاف في Secrets. كلمني على 01289590022")
+    st.stop()
 
-MONTHLY_CODE = get_monthly_code()
 CURRENT_MONTH_YEAR = datetime.now().strftime("%m-%Y")
 
-# نشوف الكوكيز - مربوطة بالشهر الحالي
+# نشوف الكوكيز
 cookies = cookie_manager.get_all()
 if cookies.get("molkhasly_sub") == CURRENT_MONTH_YEAR:
     st.session_state.subscribed = True
@@ -51,11 +50,9 @@ if not st.session_state.subscribed:
         **1. حول على Orange Cash:**  
         **01289590022**  
         
-        **2. في الملاحظات اكتب رقم موبايلك**
+        **2. ابعت سكرين التحويل واتساب على نفس الرقم**
         
-        **3. ابعت سكرين التحويل واتساب على نفس الرقم**
-        
-        **4. هبعتلك كود شهر مايو فوراً**
+        **3. هبعتلك كود الشهر فوراً**
         """)
         st.error("الكود ينتهي يوم 31 في الشهر")
     
@@ -63,8 +60,7 @@ if not st.session_state.subscribed:
         st.subheader("تفعيل اشتراك الشهر")
         code_input = st.text_input(f"دخل كود شهر {CURRENT_MONTH_YEAR}:")
         if st.button("تفعيل", type="primary"):
-            if code_input.upper() == MONTHLY_CODE:
-                # نحفظ كوكيز لآخر يوم في الشهر بس
+            if code_input.upper() == MONTHLY_CODE.upper():
                 last_day = (datetime.now().replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
                 cookie_manager.set("molkhasly_sub", CURRENT_MONTH_YEAR, expires_at=last_day)
                 st.session_state.subscribed = True
@@ -136,4 +132,3 @@ with tab2:
 
 st.divider()
 st.caption(f"للتجديد والاشتراك: 01289590022 | Orange Cash")
-st.caption(f"Admin: كود شهر {CURRENT_MONTH_YEAR} هو {MONTHLY_CODE}")
