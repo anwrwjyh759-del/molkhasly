@@ -8,3 +8,4 @@ pyarabic
 easyocr
 torch
 torchvision
+opencv-python-headless
