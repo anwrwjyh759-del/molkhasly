@@ -1,5 +1,5 @@
-streamlit
-PyPDF2
-sumy
-nltk
-extra-streamlit-components
+   streamlit
+   PyPDF2
+   requests
+   sumy
+   nltk
