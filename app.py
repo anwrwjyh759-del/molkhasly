@@ -1,97 +1,130 @@
 import streamlit as st
-import requests
-import base64
+import PyPDF2
 from datetime import datetime, timedelta
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lsa import LsaSummarizer
+import nltk
 import extra_streamlit_components as stx
 
-st.set_page_config(page_title="ملخصلي", page_icon="📚", layout="centered")
-st.title("📚 ملخصلي - لخص دروسك بالذكاء الاصطناعي")
+@st.cache_resource
+def download_nltk_data():
+    nltk.download('punkt')
 
-# مدير الكوكيز
+download_nltk_data()
+
+st.set_page_config(page_title="ملخصي - اشتراك شهري 200ج", page_icon="📝")
+
 cookie_manager = stx.CookieManager()
 
-# نقرا البيانات من الكوكيز
-trial_count = cookie_manager.get(cookie="trial_count")
-is_subscribed = cookie_manager.get(cookie="subscribed")
-
-if trial_count is None:
-    trial_count = 0
-else:
-    trial_count = int(trial_count)
-
-# --- نظام كود التفعيل الشهري التلقائي ---
-now = datetime.now()
-current_month = now.month # 1 لـ 12
-current_year = now.year % 100 # 26 لسنة 2026
-ADMIN_CODE = f"molkhasly{current_month}{current_year}" # الكود الحالي
-
-# لو مش مشترك وخلص المحاولات
-if is_subscribed!= "true" and trial_count >= 3:
-    st.error("⚠️ خلصت الـ 3 محاولات المجانية")
-    st.warning("💎 اشترك بـ 200 جنيه شهرياً للمحاولات غير المحدودة")
-
-    st.info(f"""
-    **خطوات الاشتراك:**
-    1. حول 200 جنيه على اورنج كاش: **`01289590022`**
-    2. خد سكرين شوت للتحويل
-    3. ابعت السكرين على الواتساب عشان تاخد كود التفعيل لشهر {current_month}
-    """)
-
-    st.link_button("📱 كلم خدمة العملاء واتساب", f"https://wa.me/201289590022?text=حولت 200 جنيه اشتراك ملخصلي لشهر {current_month}. عايز كود التفعيل")
-
-    # خانة كود التفعيل
-    activation_code = st.text_input("اكتب كود التفعيل هنا:", type="password")
-    if st.button("تفعيل الاشتراك"):
-        if activation_code == ADMIN_CODE:
-            # نفعل الاشتراك لمدة 31 يوم
-            expires_at = datetime.now() + timedelta(days=31)
-            cookie_manager.set("subscribed", "true", expires_at=expires_at)
-            st.success(f"✅ تم التفعيل بنجاح لشهر {current_month}!")
-            st.balloons()
-            st.rerun()
-        else:
-            st.error("كود التفعيل غلط أو بتاع شهر قديم")
+try:
+    MONTHLY_CODE = st.secrets["MONTHLY_CODE"]
+except:
+    st.error("الكود الشهري مش متضاف في Secrets. ضيفه من Settings > Secrets")
     st.stop()
 
-# --- التطبيق الأساسي ---
-if is_subscribed == "true":
-    st.success("🎉 انت مشترك في ملخصلي - محاولات غير محدودة")
+CURRENT_MONTH_YEAR = datetime.now().strftime("%m-%Y")
+
+cookies = cookie_manager.get_all()
+if cookies.get("molkhasly_sub") == CURRENT_MONTH_YEAR:
+    st.session_state.subscribed = True
 else:
-    st.success(f"فاضلك {3 - trial_count} محاولات مجانية 🎁")
+    if 'subscribed' not in st.session_state:
+        st.session_state.subscribed = False
 
-uploaded_file = st.file_uploader("ارفع صورة الدرس", type=["png", "jpg", "jpeg"])
+st.title("📝 ملخصي - النسخة المدفوعة")
+st.caption("اشتراك شهري 200 جنيه")
 
-if uploaded_file:
-    st.image(uploaded_file, use_column_width=True)
-    if st.button("لخص الدرس ✨"):
-        # نزود العداد بس لو مش مشترك
-        if is_subscribed!= "true":
-            trial_count += 1
-            expires_at = datetime.now() + timedelta(days=730) # سنتين
-            cookie_manager.set("trial_count", trial_count, expires_at=expires_at)
-
-        with st.spinner("بجهز الملخص..."):
-            image_bytes = uploaded_file.getvalue()
-            image_base64 = base64.b64encode(image_bytes).decode()
-
-            headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Content-Type": "application/json"}
-            data = {
-                "messages": [
-                    {"role": "system", "content": "انت مدرس شاطر. لخص الدرس اللي في الصورة للمرحلة الاعدادية بلغة بسيطة واعمل 3 أسئلة اختيار من متعدد بالإجابات."},
-                    {"role": "user", "content": [{"type": "text", "text": "لخصلي الدرس ده"}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}]}
-                ],
-                "model": "gpt-4o-mini"
-            }
-
-            response = requests.post("https://models.inference.ai.azure.com/chat/completions", headers=headers, json=data)
-
-            if response.status_code == 200:
-                answer = response.json()["choices"][0]["message"]["content"]
-                st.success("خلصت ✅")
-                st.markdown(answer)
+if not st.session_state.subscribed:
+    st.warning(f"⚠️ اشتراك شهر {CURRENT_MONTH_YEAR} مطلوب - 200 جنيه")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("طريقة الاشتراك")
+        st.info("""
+        **السعر: 200 جنيه شهرياً**
+        
+        **1. حول على Orange Cash:**  
+        **01289590022**  
+        
+        **2. ابعت سكرين التحويل واتساب على نفس الرقم**
+        
+        **3. هبعتلك كود الشهر فوراً**
+        """)
+        st.error("الكود ينتهي يوم 31 في الشهر")
+    
+    with col2:
+        st.subheader("تفعيل اشتراك الشهر")
+        code_input = st.text_input(f"دخل كود شهر {CURRENT_MONTH_YEAR}:")
+        if st.button("تفعيل", type="primary"):
+            if code_input.upper() == MONTHLY_CODE.upper():
+                last_day = (datetime.now().replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+                cookie_manager.set("molkhasly_sub", CURRENT_MONTH_YEAR, expires_at=last_day)
+                st.session_state.subscribed = True
+                st.success(f"تم التفعيل ✅ شغال لحد يوم {last_day.strftime('%d-%m-%Y')}")
+                st.balloons()
                 st.rerun()
             else:
-                if is_subscribed!= "true":
-                    trial_count -= 1
-                    cookie_manager.set("trial_count", trial_count, expires_at=expires_at)
-                st.error("حصلت مشكلة في الاتصال، جرب تاني")
+                st.error("الكود غلط. تواصل على 01289590022")
+    
+    st.stop()
+
+last_day = (datetime.now().replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+st.success(f"مرحباً - اشتراكك مفعل لحد يوم {last_day.strftime('%d-%m-%Y')}")
+col1, col2 = st.columns([3,1])
+with col2:
+    if st.button("تسجيل خروج"):
+        cookie_manager.delete("molkhasly_sub")
+        st.session_state.subscribed = False
+        st.rerun()
+
+tab1, tab2 = st.tabs(["📄 رفع PDF", "✍️ لصق نص"])
+
+def summarize_text(text, sentences_count):
+    try:
+        parser = PlaintextParser.from_string(text, Tokenizer("arabic"))
+        summarizer = LsaSummarizer()
+        summary = summarizer(parser.document, sentences_count)
+        result = ""
+        for sentence in summary:
+            result += str(sentence) + " "
+        return result if result.strip() else "النص قصير جداً للتلخيص"
+    except:
+        return "حصل خطأ في التلخيص"
+
+with tab1:
+    uploaded_file = st.file_uploader("ارفع ملف PDF", type="pdf")
+    sentences_count_pdf = st.slider("عدد الجمل للـ PDF:", 1, 20, 5, key="pdf")
+    
+    if uploaded_file:
+        try:
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+            
+            if st.button("لخص الـ PDF", type="primary"):
+                with st.spinner("جاري التلخيص..."):
+                    result = summarize_text(text, sentences_count_pdf)
+                    st.subheader("الملخص:")
+                    st.success(result)
+                    st.download_button("تحميل الملخص", result, file_name="summary.txt")
+        except Exception as e:
+            st.error(f"مشكلة في قراية الملف: {e}")
+
+with tab2:
+    text_input = st.text_area("الصق النص هنا:", height=300)
+    sentences_count_text = st.slider("عدد الجمل للنص:", 1, 20, 3, key="text")
+    
+    if st.button("لخص النص", type="primary"):
+        if text_input.strip():
+            with st.spinner("جاري التلخيص..."):
+                result = summarize_text(text_input, sentences_count_text)
+                st.subheader("الملخص:")
+                st.success(result)
+                st.download_button("تحميل الملخص", result, file_name="summary.txt")
+        else:
+            st.warning("اكتب نص الأول")
+
+st.divider()
+st.caption(f"للتجديد والاشتراك: 01289590022 | Orange Cash")
