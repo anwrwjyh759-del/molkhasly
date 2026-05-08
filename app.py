@@ -19,8 +19,6 @@ if trial_count is None:
 else:
     trial_count = int(trial_count)
 
-GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
-
 # --- نظام كود التفعيل الشهري التلقائي ---
 now = datetime.now()
 current_month = now.month # 1 لـ 12
