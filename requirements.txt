@@ -1,2 +1,4 @@
 streamlit
-pytz
+extra-streamlit-components
+requests
+google-generativeai
