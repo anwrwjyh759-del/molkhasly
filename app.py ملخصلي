@@ -1,3 +1,137 @@
 import streamlit as st
-st.title("التطبيق اشتغل خلاص")
-st.write("لو شايف دي يبقى نجحنا")
+import PyPDF2
+from datetime import datetime, timedelta
+import hashlib
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lsa import LsaSummarizer
+import nltk
+import extra_streamlit_components as stx
+
+@st.cache_resource
+def download_nltk_data():
+    nltk.download('punkt')
+
+download_nltk_data()
+
+st.set_page_config(page_title="ملخصي - اشتراك 200ج", page_icon="📝")
+
+# كوكيز سنتين
+cookie_manager = stx.CookieManager()
+
+# الكود السري بيتغير كل شهر تلقائي
+def get_monthly_code():
+    current_month = datetime.now().strftime("%Y-%m")
+    secret = f"molkhasly_{current_month}_premium_2026"
+    return hashlib.md5(secret.encode()).hexdigest()[:6].upper()
+
+MONTHLY_CODE = get_monthly_code()
+
+# نشوف الكوكيز الأول
+cookies = cookie_manager.get_all()
+if cookies.get("molkhasly_sub") == "active":
+    st.session_state.subscribed = True
+else:
+    if 'subscribed' not in st.session_state:
+        st.session_state.subscribed = False
+
+st.title("📝 ملخصي - النسخة المدفوعة")
+st.caption("لخص ملفات PDF ونصوص بدون حدود")
+
+if not st.session_state.subscribed:
+    st.warning("⚠️ اشتراك شهري مطلوب - 200 جنيه")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("طريقة الاشتراك")
+        st.info("""
+        **السعر: 200 جنيه شهرياً**
+        
+        **1. حول على Orange Cash:**  
+        **01289590022**  
+        
+        **2. في الملاحظات اكتب رقم موبايلك**
+        
+        **3. ابعت سكرين التحويل واتساب على نفس الرقم**
+        
+        **4. هبعتلك كود التفعيل الشهري فوراً**
+        """)
+        st.error("الكود صالح للشهر الحالي فقط")
+    
+    with col2:
+        st.subheader("تفعيل الاشتراك")
+        code_input = st.text_input("دخل كود التفعيل الشهري:")
+        if st.button("تفعيل لمدة سنتين", type="primary"):
+            if code_input.upper() == MONTHLY_CODE:
+                # نحفظ كوكيز لمدة سنتين = 730 يوم
+                expires_at = datetime.now() + timedelta(days=730)
+                cookie_manager.set("molkhasly_sub", "active", expires_at=expires_at)
+                st.session_state.subscribed = True
+                st.success("تم التفعيل بنجاح ✅ اشتراكك شغال لمدة سنتين")
+                st.balloons()
+                st.rerun()
+            else:
+                st.error("الكود غلط. تواصل على 01289590022")
+    
+    st.stop()
+
+# التطبيق بعد الاشتراك
+st.success(f"مرحباً - اشتراكك مفعل حتى { (datetime.now() + timedelta(days=730)).strftime('%d-%m-%Y') }")
+col1, col2 = st.columns([3,1])
+with col2:
+    if st.button("تسجيل خروج"):
+        cookie_manager.delete("molkhasly_sub")
+        st.session_state.subscribed = False
+        st.rerun()
+
+tab1, tab2 = st.tabs(["📄 رفع PDF", "✍️ لصق نص"])
+
+def summarize_text(text, sentences_count):
+    try:
+        parser = PlaintextParser.from_string(text, Tokenizer("arabic"))
+        summarizer = LsaSummarizer()
+        summary = summarizer(parser.document, sentences_count)
+        result = ""
+        for sentence in summary:
+            result += str(sentence) + " "
+        return result if result.strip() else "النص قصير جداً للتلخيص"
+    except:
+        return "حصل خطأ في التلخيص. اتأكد إن النص عربي أو انجليزي واضح"
+
+with tab1:
+    uploaded_file = st.file_uploader("ارفع ملف PDF", type="pdf")
+    sentences_count_pdf = st.slider("عدد الجمل للـ PDF:", 1, 20, 5, key="pdf")
+    
+    if uploaded_file:
+        try:
+            pdf_reader = PyPDF2.PdfReader(uploaded_file)
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+            
+            if st.button("لخص الـ PDF", type="primary"):
+                with st.spinner("جاري التلخيص..."):
+                    result = summarize_text(text, sentences_count_pdf)
+                    st.subheader("الملخص:")
+                    st.success(result)
+                    st.download_button("تحميل الملخص", result, file_name="summary.txt")
+        except Exception as e:
+            st.error(f"مشكلة في قراية الملف: {e}")
+
+with tab2:
+    text_input = st.text_area("الصق النص هنا:", height=300)
+    sentences_count_text = st.slider("عدد الجمل للنص:", 1, 20, 3, key="text")
+    
+    if st.button("لخص النص", type="primary"):
+        if text_input.strip():
+            with st.spinner("جاري التلخيص..."):
+                result = summarize_text(text_input, sentences_count_text)
+                st.subheader("الملخص:")
+                st.success(result)
+                st.download_button("تحميل الملخص", result, file_name="summary.txt")
+        else:
+            st.warning("اكتب نص الأول")
+
+st.divider()
+st.caption(f"للدعم والاشتراك: 01289590022 | Orange Cash")
+st.caption(f"Admin: الكود الشهري الحالي هو {MONTHLY_CODE}")
