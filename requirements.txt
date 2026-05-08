@@ -1,8 +1,10 @@
-   streamlit
-   PyPDF2
-   requests
-   sumy
-   nltk
+streamlit
+PyPDF2
+requests
+sumy
+nltk
 pillow
-pytesseract
 pyarabic
+easyocr
+torch
+torchvision
