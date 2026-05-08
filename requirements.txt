@@ -1,4 +1,2 @@
 streamlit
-requests
-extra-streamlit-components
 pytz
