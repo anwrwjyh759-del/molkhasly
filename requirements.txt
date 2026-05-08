@@ -1,4 +1,5 @@
 streamlit
+PyPDF2
+sumy
+nltk
 extra-streamlit-components
-requests
-google-generativeai
