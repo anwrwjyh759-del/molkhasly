@@ -8,6 +8,8 @@ from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
 import nltk
+from PIL import Image
+import pytesseract
 
 @st.cache_resource
 def download_nltk_data():
@@ -24,7 +26,6 @@ GITHUB_REPO = "anwrwjyh759-del/molkhasly"
 GITHUB_FILE_PATH = "current_code.json"
 CURRENT_MONTH_YEAR = datetime.now().strftime("%m-%Y")
 
-# رقم أورنج كاش
 ORANGE_CASH_NUMBER = "01289590022"
 
 def get_current_code():
@@ -75,14 +76,12 @@ with st.sidebar:
 # واجهة المستخدم
 if not st.session_state.subscribed:
     st.warning(f"⚠️ اشتراك شهر {CURRENT_MONTH_YEAR} مطلوب - 200 جنيه")
-    
     with st.container(border=True):
         st.subheader("💳 طريقة الاشتراك")
         st.write("1. حول 200 جنيه على أورنج كاش:")
         st.code(ORANGE_CASH_NUMBER, language=None)
         st.write("2. ابعت سكرين التحويل على واتساب: 01289590022")
         st.write("3. هبعتلك كود التفعيل فوراً")
-    
     code_input = st.text_input(f"دخل كود شهر {CURRENT_MONTH_YEAR} بعد الدفع:")
     if st.button("تفعيل"):
         if code_input == CURRENT_CODE:
@@ -93,23 +92,27 @@ if not st.session_state.subscribed:
             st.error("الكود غلط")
 else:
     st.success("اشتراكك مفعل ✅")
-    st.subheader("📤 ارفع ملف PDF للتلخيص")
+    st.subheader("📤 ارفع PDF أو صورة للتلخيص")
     
-    uploaded_file = st.file_uploader("اختر ملف PDF", type="pdf", help="أقصى حجم 200MB")
+    uploaded_file = st.file_uploader("اختر ملف", type=["pdf", "png", "jpg", "jpeg"])
     
     if uploaded_file:
+        text = ""
         try:
-            pdf_reader = PyPDF2.PdfReader(uploaded_file)
-            text = ""
-            st.info(f"عدد الصفحات: {len(pdf_reader.pages)}")
-            
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
+            if uploaded_file.type == "application/pdf":
+                pdf_reader = PyPDF2.PdfReader(uploaded_file)
+                st.info(f"عدد الصفحات: {len(pdf_reader.pages)}")
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            else:
+                st.info("جاري قراءة النص من الصورة... ممكن تاخد دقيقة")
+                image = Image.open(uploaded_file)
+                text = pytesseract.image_to_string(image, lang='ara+eng')
             
             if len(text.strip()) < 50:
-                st.error("الملف فاضي أو الصور بس. اتأكد إن الـ PDF فيه نص مش صور")
+                st.error("النص قليل أو مش واضح. اتأكد إن الصورة جودتها عالية والكلام واضح")
             else:
                 col1, col2 = st.columns(2)
                 with col1:
@@ -121,9 +124,8 @@ else:
                             summarizer = LsaSummarizer()
                             summary = summarizer(parser.document, num_sentences)
                             result = " ".join([str(s) for s in summary])
-                            
                             st.subheader("📝 الملخص:")
                             st.write(result)
                             st.download_button("📥 حمل الملخص", result, file_name="summary.txt")
         except Exception as e:
-            st.error("حصل خطأ في قراءة الملف: تأكد إنه PDF سليم")
+            st.error(f"حصل خطأ: {e}")
