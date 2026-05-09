@@ -1,8 +1,6 @@
-streamlit
-PyPDF2
-requests
-sumy
-nltk
-pillow
-pytesseract
-pyarabic
+flask==3.0.3
+gunicorn==22.0.0
+PyPDF2==3.0.1
+pillow==10.4.0
+pytesseract==0.3.13
+pyarabic==0.6.15
