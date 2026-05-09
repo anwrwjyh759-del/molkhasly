@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>ملخصلي</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 600px; margin: auto; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; }
+        button { background: #22c55e; color: white; border: none; cursor: pointer; }
+       .card { background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h3>1. كود التفعيل الشهري:</h3>
+        <p>للاشتراك {{price}} حول على أورنج كاش: {{number}}</p>
+        <input type="text" id="code" placeholder="دخّل الكود اللي خته مننا">
+        
+        <h3>2. ارفع ملفك:</h3>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.txt">
+        
+        <button onclick="summarize()">استخرج ولخص دلوقتي 🚀</button>
+    </div>
+    
+    <div class="card">
+        <h3>الحالة:</h3>
+        <div id="result">مستني ترفع ملف...</div>
+    </div>
+
+    <script>
+        async function summarize() {
+            const code = document.getElementById('code').value;
+            const file = document.getElementById('fileInput').files[0];
+            const resultDiv = document.getElementById('result');
+            
+            if (!code ||!file) {
+                resultDiv.innerHTML = '❌ دخل الكود وارفع ملف الأول';
+                return;
+            }
+            
+            resultDiv.innerHTML = '⏳ جاري التلخيص...';
+            
+            const formData = new FormData();
+            formData.append('activation_code', code);
+            formData.append('file', file);
+            
+            const res = await fetch('/summarize', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await res.json();
+            if (data.status === 'success') {
+                resultDiv.innerHTML = '✅ الملخص:<br><br>' + data.summary;
+            } else {
+                resultDiv.innerHTML = '❌ ' + data.message;
+            }
+        }
+    </script>
+</body>
+</html>
